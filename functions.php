@@ -8,12 +8,15 @@
 * @param array $placeholders is array with placeholders numbers for grid
 * @return array with start & end positions for grid css layout
 */
-function getGridBounds($min, $max, $placeholders) : array {
+function getGridBounds($placeholders, $cells) : array {
 
+    $min = min($cells);
+    $max = max($cells);
+    $cells = array_unique($cells);
     $start_pos = ['row' => 0, 'col' => 0];
     $end_pos = ['row' => 0, 'col' => 0];
-    $row_position = 1;
-    $column_position = 1;
+    $row_position = 0;
+    $column_position = 0;
 
     foreach ($placeholders as $row) {
 
@@ -28,13 +31,19 @@ function getGridBounds($min, $max, $placeholders) : array {
         }
 
         $row_position++;
-        $column_position = 1;
+        $column_position = 0;
     }
 
-    return [
+    $positions = [
         'start_pos' => $start_pos,
         'end_pos' => $end_pos
     ];
+
+    if (!isValidRectangle($positions, $cells, $placeholders)) {
+        throw new Exception("Неправильные прямоугольники!");
+    }
+
+    return $positions;
 }
 
 /**
@@ -45,15 +54,23 @@ function getGridBounds($min, $max, $placeholders) : array {
 * @return string result HTML for one element
 */
 function getHTMLFromData($text_block, $bounds) : string {
+
+    $start_column = $bounds['start_pos']['col'] + 1;
+    $end_column = $bounds['end_pos']['col'] + 2;
+    $start_row = $bounds['start_pos']['row'] + 1;
+    $end_row = $bounds['end_pos']['row'] + 2;
+    $bg_color = $text_block["bgcolor"];
+    $color = $text_block["color"];
+    $align = $text_block["align"];
+    $valign = $text_block['valign'];
+    $text = $text_block["text"];
+
     return "
-    <div style='grid-column:"
-    . $bounds['start_pos']['col'] . "/" . ($bounds['end_pos']['col'] + 1)
-    . "; grid-row:" . $bounds['start_pos']['row'] . "/" . ($bounds['end_pos']['row'] + 1)
-    . "; background-color:" . $text_block["bgcolor"]
-    . "; color:" . $text_block["color"]
-    . "; text-align: " . $text_block["align"]
-    . "'>" . "<p class='". $text_block['valign'] . "'>" . $text_block["text"]
-    . "</p></div>";
+    <div style='grid-column:
+    $start_column / $end_column; grid-row: $start_row / $end_row;
+    background-color: $bg_color; color:  $color; text-align: $align;'>
+    <p class='$valign'>$text</p>
+    </div>";
 }
 
 /**
@@ -62,7 +79,7 @@ function getHTMLFromData($text_block, $bounds) : string {
 * @throws Exception if rectangles have intersects
 * @return void
 */
-function checkForIntersects($input_data) {
+function checkForIntersects($input_data) : void {
     $all_cells = [];
     foreach ($input_data as $text_block) {
         $cells = explode(',', $text_block['cells']);
@@ -72,4 +89,55 @@ function checkForIntersects($input_data) {
         }
         $all_cells = array_merge($all_cells, $cells);
     }
+}
+
+/**
+*
+* Validation of rectangle
+* @author Roman Pavliukov
+* @param array $positions
+* @param array $cells
+* @param array $placeholders
+* @return bool
+*/
+function isValidRectangle($positions, $cells, $placeholders) : bool {
+    $start_pos = $positions['start_pos'];
+    $end_pos = $positions['end_pos'];
+    $correct_rect_placeholders = [];
+
+    if ($start_pos['row'] > $end_pos['row'] || $start_pos['col'] > $end_pos['col']) {
+        return false;
+    }
+
+    for ($row = $start_pos['row']; $row <= $end_pos['row']; $row++) {
+        for ($col = $start_pos['col']; $col <= $end_pos['col']; $col++) {
+            $correct_rect_placeholders[] = $placeholders[$row][$col];
+        }
+    }
+
+    return arrayIdent($cells, $correct_rect_placeholders);
+}
+
+/**
+*
+* Function to check arrays identical
+* @author Roman Pavliukov
+* @param array $array1
+* @param array $array2
+* @return bool
+*/
+function arrayIdent($array1, $array2) : bool {
+    if (count($array1) == count($array2))
+        if (empty(array_diff($array1, $array2)))
+            return true;
+
+    return false;
+};
+
+function getRenderedHTML($path) {
+    ob_start();
+    include($path);
+    $var=ob_get_contents();
+    ob_end_clean();
+    return $var;
 }
