@@ -5,7 +5,7 @@
     </head>
     <body>
         <div class='wrapper'>
-            <?php $result = include('main.php');echo $result; ?>
+            <?php $result = include('main.php'); echo $result; ?>
         </div>
     </body>
 </html>
